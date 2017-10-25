@@ -1,9 +1,15 @@
 <!DOCTYPE html>
 <html>
 <head>
-	<title>TEST</title>
+	<title>CMS</title>
 </head>
 <body>
+	<% if session[:error] %>
+		<%= session.delete(:error) %>
+	<% end %>
+	<% if session[:success] %>
+		<%= session.delete(:success) %>
+	<% end %>	
 	<%= yield %>
 </body>
 </html>
