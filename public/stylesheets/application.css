@@ -1,0 +1,21 @@
+body {
+	font-family: sans-serif;
+	padding: 15px 25px 15px 25px;
+	font-size: 18px;
+}
+
+.flash {
+	padding: 12px 10px 12px 10px;
+}
+
+.success {
+	background-color: #FFFF99;
+}
+
+.error {
+	background-color: #FF838F;
+}
+
+.delete {
+	display: inline-block;
+}

@@ -1,15 +1,23 @@
 <!DOCTYPE html>
 <html>
 <head>
+	<link rel="stylesheet" type="text/css" href="/stylesheets/application.css">
 	<title>CMS</title>
 </head>
 <body>
+
 	<% if session[:error] %>
-		<%= session.delete(:error) %>
+	<div>
+		<p class="flash error"><%= session.delete(:error) %></p>
+	</div>
 	<% end %>
+
 	<% if session[:success] %>
-		<%= session.delete(:success) %>
+	<div>
+		<p class="flash success"><%= session.delete(:success) %></p>
+	</div>
 	<% end %>	
+		
 	<%= yield %>
 </body>
 </html>

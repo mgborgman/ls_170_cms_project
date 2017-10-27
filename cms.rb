@@ -10,38 +10,113 @@ configure do
   #set :erb, :escape_html => true
 end
 
-before do
-  @root = File.expand_path("..", __FILE__)
-  @documents = Dir.entries(@root + "/data/").select{|file| !File.directory?(file)}
+def data_path
+  if ENV["RACK_ENV"] == "test"
+    File.expand_path("../test/data", __FILE__)
+  else
+    File.expand_path("../data", __FILE__)
+  end
 end
 
-get "/" do
-  erb :index, layout: :layout
-end
-
-get "/:file" do
-  if !@documents.include?(params[:file])
-    session[:error] = "#{params[:file]} does not exist"
-    redirect "/"
-  elsif File.extname(params[:file]) == '.md'
+def load_file_content(file)
+  case File.extname(file)
+  when '.md'
     markdown = Redcarpet::Markdown.new(Redcarpet::Render::HTML)
-    @contents = markdown.render(File.read(@root + "/data/" + params[:file]))
-    # erb :file, layout: :layout
+    @contents = markdown.render(File.read(file))
+    erb :file, layout: :layout
   else
     headers['Content-Type'] = 'text/plain'
-    @contents = File.read(@root + "/data/" + params[:file])
+    @contents = File.read(file)
     erb :file, layout: false
   end
 end
 
+def create_empty_document(file)
+  File.write(File.join(data_path, file), "")
+end
+
+def submit_new_document_form(file)
+  if File.extname(file).empty?
+    file << ".txt"
+    create_empty_document(file)
+    session[:success] = "#{file} has been created."
+    redirect "/"
+  else
+    create_empty_document(file)
+    session[:success] = "#{file} has been created."
+    redirect "/"
+  end
+end
+
+get "/" do
+  pattern = File.join(data_path, "*")
+  @files = Dir.glob(pattern).map do |path|
+    File.basename(path)
+  end
+  erb :index, layout: :layout
+end
+
 get "/:file/edit" do
-  @contents = File.read(@root + "/data/" + params[:file])
+  file_path = File.join(data_path, params[:file])
+  @contents = File.read(file_path)
   erb :edit_file, layout: :layout
 end
 
-post "/:file" do
-  file_name = File.basename(params[:file], ".*")
-  File.open(@root + "/data/" + params[:file], "w+") { |file| file.write(params[:file_contents]) }
-  session[:success] = "#{file_name} has been updated"
+post "/:file/edit" do
+  file_path = File.join(data_path, params[:file])
+  File.open(file_path, "w+") { |file| file.write(params[:file_contents]) }
+  session[:success] = "#{params[:file]} has been updated."
   redirect "/"
+end
+
+get "/new" do
+  erb :new_document, layout: :layout
+end
+
+post "/create" do
+  if params[:new_document].strip.empty?
+    session[:error] = "You must enter a document."
+    erb :new_document, layout: :layout
+  else
+    submit_new_document_form(params[:new_document])
+  end
+end
+
+post "/:file/delete" do
+  File.delete(File.join(data_path, params[:file]))
+  session[:success] = "#{params[:file]} has been deleted."
+  redirect "/"
+end
+
+get "/users/signin" do
+  erb :signin, layout: :layout
+end
+
+post "/signin" do
+  if params[:username] == "admin" && params[:password] == "secret"
+    session[:username] = params[:username]
+    session[:success] = "Welcome!"
+    redirect "/"
+  else
+    session[:error] = "Incorrect username or password."
+    status 422
+    erb :signin, layout: :layout
+  end
+end
+
+post "/signout" do
+  session.delete(:username)
+  session[:success] = "You have been signed out."
+  redirect "/"
+end
+
+get "/:file" do
+  file_path = File.join(data_path, params[:file])
+
+  if File.exist?(file_path)
+    load_file_content(file_path)
+  else
+    session[:error] = "#{params[:file]} does not exist."
+    redirect "/"
+  end
 end
