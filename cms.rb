@@ -3,6 +3,7 @@ require "sinatra/reloader"
 require "sinatra/content_for"
 require "tilt/erubis"
 require "redcarpet"
+require "yaml"
 
 configure do
   enable :sessions
@@ -31,6 +32,10 @@ def load_file_content(file)
   end
 end
 
+def list_of_users
+  @users = YAML.load_file(File.join(data_path, "../users.yaml"))
+end
+
 def create_empty_document(file)
   File.write(File.join(data_path, file), "")
 end
@@ -48,6 +53,15 @@ def submit_new_document_form(file)
   end
 end
 
+def user_not_signed_in
+  !session[:username]
+end
+
+def redirect_to_homepage
+  session[:error] = "You must be signed in to do that."
+  redirect "/"
+end
+
 get "/" do
   pattern = File.join(data_path, "*")
   @files = Dir.glob(pattern).map do |path|
@@ -57,35 +71,55 @@ get "/" do
 end
 
 get "/:file/edit" do
-  file_path = File.join(data_path, params[:file])
-  @contents = File.read(file_path)
-  erb :edit_file, layout: :layout
+  if user_not_signed_in
+    redirect_to_homepage
+  else
+    file_path = File.join(data_path, params[:file])
+    @contents = File.read(file_path)
+    erb :edit_file, layout: :layout
+  end
 end
 
 post "/:file/edit" do
-  file_path = File.join(data_path, params[:file])
-  File.open(file_path, "w+") { |file| file.write(params[:file_contents]) }
-  session[:success] = "#{params[:file]} has been updated."
-  redirect "/"
+  if user_not_signed_in
+    redirect_to_homepage
+  else
+    file_path = File.join(data_path, params[:file])
+    File.open(file_path, "w+") { |file| file.write(params[:file_contents]) }
+    session[:success] = "#{params[:file]} has been updated."
+    redirect "/"
+  end
 end
 
 get "/new" do
-  erb :new_document, layout: :layout
+  if user_not_signed_in
+    redirect_to_homepage
+  else
+    erb :new_document, layout: :layout
+  end
 end
 
 post "/create" do
-  if params[:new_document].strip.empty?
-    session[:error] = "You must enter a document."
-    erb :new_document, layout: :layout
+  if user_not_signed_in
+    redirect_to_homepage
   else
-    submit_new_document_form(params[:new_document])
+    if params[:new_document].strip.empty?
+      session[:error] = "You must enter a document."
+      erb :new_document, layout: :layout
+    else
+      submit_new_document_form(params[:new_document])
+    end
   end
 end
 
 post "/:file/delete" do
-  File.delete(File.join(data_path, params[:file]))
-  session[:success] = "#{params[:file]} has been deleted."
-  redirect "/"
+  if user_not_signed_in
+    redirect_to_homepage
+  else
+    File.delete(File.join(data_path, params[:file]))
+    session[:success] = "#{params[:file]} has been deleted."
+    redirect "/"
+  end
 end
 
 get "/users/signin" do
@@ -93,7 +127,7 @@ get "/users/signin" do
 end
 
 post "/signin" do
-  if params[:username] == "admin" && params[:password] == "secret"
+  if list_of_users.keys.include?(params[:username]) && list_of_users[params[:username]] == (params[:password])
     session[:username] = params[:username]
     session[:success] = "Welcome!"
     redirect "/"

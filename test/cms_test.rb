@@ -31,6 +31,10 @@ class AppTest < Minitest::Test
     last_request.env["rack.session"]
   end
 
+  def admin_session
+    {"rack.session" => { username: "admin" } }
+  end
+
   def test_index
     create_document("about.txt")
     create_document("changes.txt")
@@ -59,9 +63,9 @@ class AppTest < Minitest::Test
     assert_includes(last_response.body, "<h1>This is markdown</h1>")
   end
 
-  def test_edit_file
+  def test_edit_file_logged_in
     create_document("history.txt")
-    get "/history.txt/edit"
+    get "/history.txt/edit", {}, admin_session
     assert_equal(200, last_response.status)
     assert_equal("text/html;charset=utf-8", last_response["Content-Type"])
     assert_includes(last_response.body, "<p>Edit the contents of history.txt</p>")
@@ -69,9 +73,18 @@ class AppTest < Minitest::Test
     assert_includes(last_response.body, '<button type="submit"')
   end
 
-  def test_submit_file_edits
+  def test_edit_file_not_logged_in
     create_document("history.txt")
-    post "/history.txt/edit", file_contents: "new content"
+    get "/history.txt/edit"
+    assert_equal(302, last_response.status)
+    assert_equal("You must be signed in to do that.", session[:error])
+    get(last_response["Location"])
+    assert_includes(last_response.body, "history.txt")
+  end
+
+  def test_submit_file_edits_logged_in
+    create_document("history.txt")
+    post "/history.txt/edit", {file_contents: "new content"}, admin_session
     
     assert_equal(302, last_response.status)
     assert_equal("history.txt has been updated.", session[:success])
@@ -81,8 +94,17 @@ class AppTest < Minitest::Test
     assert_includes(last_response.body, "new content")
   end
 
-  def test_create_new_document_form
-    get "/new"
+  def test_submit_file_edits_not_logged_in
+    create_document("history.txt")
+    post "/history.txt/edit"
+    assert_equal(302, last_response.status)
+    assert_equal("You must be signed in to do that.", session[:error])
+    get(last_response["Location"])
+    assert_includes(last_response.body, "history.txt")
+  end
+
+  def test_create_new_document_form_logged_in
+    get "/new", {}, admin_session
     assert_equal(200, last_response.status)
     assert_includes(last_response.body, "<form")
     assert_includes(last_response.body, "<label>Add a new document:</label></br>")
@@ -91,8 +113,16 @@ class AppTest < Minitest::Test
     assert_includes(last_response.body, "</form>")
   end
 
-  def test_submit_create_new_document_form
-    post "/create", new_document: "test.txt"
+  def test_create_new_document_form_not_logged_in
+    get "/new"
+    assert_equal(302, last_response.status)
+    assert_equal("You must be signed in to do that.", session[:error])
+    get(last_response["Location"])
+    assert_includes(last_response.body, '<a href="/new"')
+  end
+
+  def test_submit_create_new_document_form_logged_in
+    post "/create", {new_document: "test.txt"}, admin_session
     
     assert_equal(302, last_response.status)
     assert_equal("test.txt has been created.", session[:success])
@@ -102,10 +132,18 @@ class AppTest < Minitest::Test
     assert_includes(last_response.body, "")
   end
 
-  def test_delete_file
+  def test_submit_create_new_document_form_not_logged_in
+    post "/create"
+    assert_equal(302, last_response.status)
+    assert_equal("You must be signed in to do that.", session[:error])
+    get(last_response["Location"])
+    assert_includes(last_response.body, '<a href="/new"')
+  end
+
+  def test_delete_file_logged_in
     create_document("test.txt")
     
-    post "/test.txt/delete"
+    post "/test.txt/delete", {}, admin_session
     assert_equal(302, last_response.status)
     assert_equal("test.txt has been deleted.", session[:success])
 
@@ -114,6 +152,15 @@ class AppTest < Minitest::Test
 
     get "/"
     refute_includes(last_response.body, "test.txt")
+  end
+
+  def test_delete_file_not_logged_in
+    create_document("test.txt")
+    post "/test.txt/delete"
+    assert_equal(302, last_response.status)
+    assert_equal("You must be signed in to do that.", session[:error])
+    get(last_response["Location"])
+    assert_includes(last_response.body, 'test.txt')
   end
 
   def test_signin
@@ -146,14 +193,13 @@ class AppTest < Minitest::Test
   end
 
   def test_signout
-    post "/signin", username: "admin", password: "secret"
-    get(last_response["Location"])
+    get "/", {}, admin_session
 
     post "/signout"
-    assert_equal(302, last_response.status)
+
+    assert_nil(session[:username])
     assert_equal("You have been signed out.", session[:success])
     get(last_response["Location"])
-    assert_equal(200, last_response.status)
   end
 
   def test_file_does_not_exist
