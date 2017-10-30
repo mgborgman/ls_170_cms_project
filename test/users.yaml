@@ -1,1 +1,2 @@
-admin: secret
+admin: $2a$10$k6QOOZPhk0eqa1/Q8tFOWubq4rkg.xRafNJok20bQpHLCNlE6XZPm
+test: $2a$10$7m72jugHEOCL6JRculxH3uz1rt0Cyy5JsuAlMfpfiy3rUAQ/6ssMK

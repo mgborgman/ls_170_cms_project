@@ -27,6 +27,12 @@ class AppTest < Minitest::Test
     end
   end
 
+  def create_users_document
+    File.open(File.join(users_path, "users.yaml"), "w") do |file|
+      file.write("admin: #{hash_password('secret')}")
+    end
+  end
+
   def session
     last_request.env["rack.session"]
   end
@@ -51,7 +57,7 @@ class AppTest < Minitest::Test
     create_document("history.txt", "history")
     get "/history.txt"
     assert_equal(200, last_response.status)
-    assert_equal("text/plain", last_response["Content-Type"])
+    assert_equal("text/html;charset=utf-8", last_response["Content-Type"])
     assert_includes(last_response.body, "history")
   end
 
@@ -176,8 +182,9 @@ class AppTest < Minitest::Test
     assert_includes(last_response.body, "</form>")
   end
 
-  def test_user_login_success
-    post "/signin", username: "admin", password: "secret"
+  def test_user_login_successful
+    create_users_document
+    post "/users/signin", username: "admin", password: "secret"
     assert_equal(302, last_response.status)
     assert_equal("Welcome!", session[:success])
 
@@ -186,16 +193,42 @@ class AppTest < Minitest::Test
   end
 
   def test_user_login_unsuccessful
-    post "/signin", username: "user", password: "wrong"
+    create_users_document
+    post "/users/signin", username: "user", password: "wrong"
     assert_equal(422, last_response.status)
     assert_nil(session[:username])
     assert_includes(last_response.body, "Incorrect username or password.")
   end
 
+  def test_user_account_creation_successful
+    create_users_document
+    post "/users/signup", username: "test", password:"password", verify_password: "password"
+    assert_equal("Account created successfully.", session[:success])
+    assert_equal(302, last_response.status)
+    get(last_response["Location"])
+    assert_equal(200, last_response.status)
+    assert_includes(last_response.body, "<form")
+    assert_includes(last_response.body, '<label for="username"')
+  end
+
+  def test_user_account_creation_invalid_username
+    create_users_document
+    post "/users/signup", username: "admin", password: "anything", verify_password: "anything"
+    assert_equal(422, last_response.status)
+    assert_includes(last_response.body, "Username is already taken.")
+  end
+
+  def test_user_account_creation_invalid_password
+    create_users_document
+    post "/users/signup", username: "not_admin", password: "anything", verify_password: "anything_else"
+    assert_equal(422, last_response.status)
+    assert_includes(last_response.body, "Passwords do not match.")
+  end
+
   def test_signout
     get "/", {}, admin_session
 
-    post "/signout"
+    post "/users/signout"
 
     assert_nil(session[:username])
     assert_equal("You have been signed out.", session[:success])
