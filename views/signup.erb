@@ -1,0 +1,9 @@
+<form action="/users/signup" method="post">
+	<label for="username">Username:</label>
+	<input type="text" name="username" value=<%= params[:username] %>></br>
+	<label for="password">Password:</label>
+	<input type="password" name="password" value=<%= params[:password] %>></br>
+	<label for="verify_password">Verify Password:</label>
+	<input type="password" name="verify_password" value=<%= params[:verify_password] %>></br>	
+	<input type="submit" value="Create Account">
+</form>

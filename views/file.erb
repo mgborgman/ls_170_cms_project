@@ -1,1 +1,7 @@
-<%= @contents %>
+<% if @plain_text %>
+		<% @contents.each do |line| %>
+			<p class="plain_text"><%= line %></p>
+		<% end %>
+<% else %>
+	<%= @contents %>
+<% end %>

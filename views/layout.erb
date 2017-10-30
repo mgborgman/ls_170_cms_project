@@ -4,6 +4,11 @@
 	<link rel="stylesheet" type="text/css" href="/stylesheets/application.css">
 	<title>CMS</title>
 </head>
+<header>
+	<% unless @index %>
+		<a href="/">Home</a>
+	<% end %>
+</header>
 <body>
 
 	<% if session[:error] %>

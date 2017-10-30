@@ -4,11 +4,20 @@ require "sinatra/content_for"
 require "tilt/erubis"
 require "redcarpet"
 require "yaml"
+require "bcrypt"
+
 
 configure do
   enable :sessions
   set :session_secret, 'secret'
   #set :erb, :escape_html => true
+end
+
+before do
+  session[:signed_in] ||= false
+end
+def root
+  File.expand_path("..", __FILE__)
 end
 
 def data_path
@@ -24,16 +33,25 @@ def load_file_content(file)
   when '.md'
     markdown = Redcarpet::Markdown.new(Redcarpet::Render::HTML)
     @contents = markdown.render(File.read(file))
-    erb :file, layout: :layout
+    erb :file
   else
-    headers['Content-Type'] = 'text/plain'
-    @contents = File.read(file)
-    erb :file, layout: false
+    @plain_text = true
+    # headers['Content-Type'] = 'text/html'
+    @contents = File.readlines(file)
+    erb :file
+  end
+end
+
+def users_path
+  if ENV["RACK_ENV"] == "test"
+    File.expand_path("../test", __FILE__)
+  else
+    root
   end
 end
 
 def list_of_users
-  @users = YAML.load_file(File.join(data_path, "../users.yaml"))
+  @users = YAML.load_file(File.join(users_path, "/users.yaml"))
 end
 
 def create_empty_document(file)
@@ -62,12 +80,30 @@ def redirect_to_homepage
   redirect "/"
 end
 
+def valid_login?(username, password)
+  users = list_of_users
+  if list_of_users.key?(username)
+    test_password(password, users[username])
+  else
+    false
+  end
+end
+
+def hash_password(password)
+  BCrypt::Password.create(password).to_s
+end
+
+def test_password(password, hash)
+  BCrypt::Password.new(hash) == password
+end
+
 get "/" do
+  @index = true
   pattern = File.join(data_path, "*")
   @files = Dir.glob(pattern).map do |path|
     File.basename(path)
   end
-  erb :index, layout: :layout
+  erb :index
 end
 
 get "/:file/edit" do
@@ -76,7 +112,7 @@ get "/:file/edit" do
   else
     file_path = File.join(data_path, params[:file])
     @contents = File.read(file_path)
-    erb :edit_file, layout: :layout
+    erb :edit_file
   end
 end
 
@@ -95,7 +131,7 @@ get "/new" do
   if user_not_signed_in
     redirect_to_homepage
   else
-    erb :new_document, layout: :layout
+    erb :new_document
   end
 end
 
@@ -105,7 +141,7 @@ post "/create" do
   else
     if params[:new_document].strip.empty?
       session[:error] = "You must enter a document."
-      erb :new_document, layout: :layout
+      erb :new_document
     else
       submit_new_document_form(params[:new_document])
     end
@@ -123,22 +159,46 @@ post "/:file/delete" do
 end
 
 get "/users/signin" do
-  erb :signin, layout: :layout
+  erb :signin
 end
 
-post "/signin" do
-  if list_of_users.keys.include?(params[:username]) && list_of_users[params[:username]] == (params[:password])
+post "/users/signin" do
+  if valid_login?(params[:username], params[:password])
     session[:username] = params[:username]
     session[:success] = "Welcome!"
     redirect "/"
   else
     session[:error] = "Incorrect username or password."
     status 422
-    erb :signin, layout: :layout
+    erb :signin
   end
 end
 
-post "/signout" do
+get "/users/signup" do
+  erb :signup
+end
+
+post "/users/signup" do
+  users = list_of_users if File.exist?(File.join(users_path, "/users.yaml"))
+  if users && users.include?(params[:username])
+    session[:error] = "Username is already taken."
+    status 422
+    erb :signup
+  elsif params[:password] != params[:verify_password]
+    session[:error] = "Passwords do not match."
+    status 422
+    erb :signup
+  else
+    hash = hash_password(params[:password])
+    File.open(File.join(users_path, "/users.yaml"), "a+") do |file|
+      file.write("\n#{params[:username]}: #{hash}")
+    end
+    session[:success] = "Account created successfully."
+    redirect "/users/signin"
+  end
+end
+
+post "/users/signout" do
   session.delete(:username)
   session[:success] = "You have been signed out."
   redirect "/"

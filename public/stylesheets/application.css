@@ -19,3 +19,7 @@ body {
 .delete {
 	display: inline-block;
 }
+
+.plain_text {
+	overflow: auto;
+}
