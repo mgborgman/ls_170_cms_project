@@ -174,7 +174,7 @@ post '/:file/insert-image' do
       # throw error
       session[:error] = 'This file type is not able to accept images.'
     end
-    redirect "/#{params[:fle]}/edit"
+    redirect "/#{params[:file]}/edit"
   end
 end
 
