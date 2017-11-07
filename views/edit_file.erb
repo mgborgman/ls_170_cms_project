@@ -1,4 +1,16 @@
 <p>Edit the contents of <%= params[:file] %></p>
+
+<% if @extension == '.md' || @extension == '.html' %>
+	<button id="insert_image">Insert Image</button><br><br>
+	<form id="image_select_form" action="/<%= params[:file] %>/insert-image" method="post">
+		<% @images.each_with_index do |image, index| %>
+			<input type="checkbox" id="image_select_<%= index %>" name="image_select" value="/images/<%= image %>">
+			<label for="image_select_<%= index %>"><img class="thumbnail" src="/images/<%= image %>"></label>
+		<% end %>
+		<button type="submit" value="submit">Submit</button>
+	</form>
+<% end %>
+
 <form action="/<%= params[:file] %>/edit" method="post">
 	<textarea name="file_contents" rows="20" cols="100"><%= @contents %></textarea></br>
 	<button type="submit" value="submit">Save Changes</button>

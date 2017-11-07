@@ -1,28 +1,47 @@
+<% if  session[:signed_in] == false && !session[:username] %>
+	<form action="/users/signin">
+		<input class="btn btn-primary btn-sm" type="submit" value="Sign In">
+	</form>
+
+	<form action="/users/signup">
+		<input class="btn btn-primary btn-sm" type="submit" value="Create Account">
+	</form>		
+<% else %>
+	<p><em>Signed in as <%= session[:username] %>.</em></p>
+	<form action="/users/signout" method="post">
+		<input class="btn btn-secondary btn-sm" type="submit" value="Sign Out">
+	</form>
+<% end %>
+
+
+<h1>Documents</h1>
 <ul>
 	<% @files.each do |file| %>
 		<li>
 			<a href="/<%= file %>"><%= file %></a>
-			<a href="/<%= file %>/edit">Edit</a>
-			<form class="delete" action="/<%= file %>/delete" method="post">
-				<button type="submit">Delete</button>	
+			<a class="btn btn-secondary btn-sm" href="/<%= file %>/edit">Edit</a>
+			<a class="btn btn-secondary btn-sm" href="/<%= file %>/rename">Rename</a>
+			<form class="button" action="/<%= file %>/duplicate" method="post">
+				<button class="btn btn-secondary btn-sm" type="submit">Duplicate</button>	
+			</form>			
+			<form class="button" action="/<%= file %>/delete" method="post">
+				<button class="btn btn-danger btn-sm" type="submit">Delete</button>	
 			</form>
 			
 		</li>
 	<% end %>
 </ul>
+
+<h1>Images</h1>
+<ul>
+	<% @images.each do |image| %>
+		<li>
+			<a href="/<%= image %>"><%= image %></a>
+		</li>
+	<% end %>
+</ul>
+
+<h1>Add Documents and Images</h1>
+
 <a href="/new">New Document</a></br></br>
-
-<% if  session[:signed_in] == false && !session[:username] %>
-	<form action="/users/signin">
-		<input type="submit" value="Sign In">
-	</form>
-
-	<form action="/users/signup">
-		<input type="submit" value="Create Account">
-	</form>		
-<% else %>
-	<p><em>Signed in as <%= session[:username] %>.</em></p>
-	<form action="/users/signout" method="post">
-		<input type="submit" value="Sign Out">
-	</form>
-<% end %>
+<a href="/upload">Upload Image</a>

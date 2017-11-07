@@ -3,22 +3,32 @@ ENV["RACK_ENV"] = "test"
 require "minitest/autorun"
 require "rack/test"
 require "fileutils"
+require 'pry'
 
 require_relative "../cms"
 
 class AppTest < Minitest::Test
   include Rack::Test::Methods
+  #include Rack::Test::UploadedFile
 
   def app
     Sinatra::Application
   end
 
+  def upload_path
+    File.expand_path("../uploads", __FILE__)
+  end
+
   def setup
     FileUtils.mkdir_p(data_path)
+    FileUtils.mkdir_p(image_path)
+    FileUtils.mkdir_p(upload_path)
   end
 
   def teardown
     FileUtils.rm_rf(data_path)
+    FileUtils.rm_rf(image_path)
+    FileUtils.rm_rf(upload_path)
   end
 
   def create_document(name, content="")
@@ -67,6 +77,14 @@ class AppTest < Minitest::Test
     assert_equal(200, last_response.status)
     assert_equal("text/html;charset=utf-8", last_response["Content-Type"])
     assert_includes(last_response.body, "<h1>This is markdown</h1>")
+  end
+
+  def test_html
+    create_document("test.html", "<h1>This is html</h1>")
+    get "/test.html"
+    assert_equal(200, last_response.status)
+    assert_equal("text/html;charset=utf-8", last_response["Content-Type"])
+    assert_includes(last_response.body, "<h1>This is html</h1>")
   end
 
   def test_edit_file_logged_in
@@ -146,6 +164,30 @@ class AppTest < Minitest::Test
     assert_includes(last_response.body, '<a href="/new"')
   end
 
+  def test_duplicate_file_logged_in
+    create_document("test.txt", "this should be duplicated.")
+
+    post "/test.txt/duplicate", {}, admin_session
+    assert_equal(302, last_response.status)
+    assert_equal("File duplicated.", session[:success])
+
+    get(last_response["Location"])
+    assert_equal(200, last_response.status)
+    assert_includes(last_response.body, "copy_test.txt")
+  end
+
+  def test_duplicate_file_not_logged_in
+    create_document("test.txt", "this should not be duplicated.")
+
+    post "/test.txt/duplicate"
+    assert_equal(302, last_response.status)
+    assert_equal("You must be signed in to do that.", session[:error])
+
+    get(last_response["Location"])
+    assert_equal(200, last_response.status)
+    refute_includes(last_response.body, "copy_test.txt")
+  end
+
   def test_delete_file_logged_in
     create_document("test.txt")
     
@@ -167,6 +209,50 @@ class AppTest < Minitest::Test
     assert_equal("You must be signed in to do that.", session[:error])
     get(last_response["Location"])
     assert_includes(last_response.body, 'test.txt')
+  end
+
+  def test_upload_image_form_logged_in
+    get "/upload", {}, admin_session
+    assert_equal(200, last_response.status)
+    assert_includes(last_response.body, '<form action="/upload"')
+    assert_includes(last_response.body, '<input type="file"')
+    assert_includes(last_response.body, '<input type="submit"')
+    assert_includes(last_response.body, '</form>')
+  end
+
+  def test_upload_image_form_not_logged_in
+    get "/upload"
+    assert_equal(302, last_response.status)
+    assert_equal("You must be signed in to do that.", session[:error])
+    get(last_response["Location"])
+    assert_equal(200, last_response.status)
+  end
+
+  def test_upload_image_logged_in
+    File.write(File.join(upload_path, 'test.jpg'), 'wb')
+    path = File.join(upload_path, 'test.jpg')
+    assert_empty(Dir.glob(File.join(image_path, '*'))) # Check there's no files present in the dir to upload
+    file = Rack::Test::UploadedFile.new(path, 'image/jpeg')
+    # file.inspect
+    post '/upload', {file: file}, admin_session
+    # Creates a Rack::Test::UploadedFile object which includes a @tempfile instance variable
+    assert_equal(1, Dir.glob(File.join(image_path, '*')).size) # Check there's now 1 uploaded file
+    files = Dir.glob(File.join(image_path, '*')).map { |file| File.basename(file) }
+    assert_includes(files, 'test.jpg')
+  end
+
+  def test_upload_image_not_logged_in
+    File.write(File.join(upload_path, 'test.jpg'), 'wb')
+    path = File.join(upload_path, 'test.jpg')
+    file = Rack::Test::UploadedFile.new(path, 'image/jpeg')
+    assert_empty(Dir.glob(File.join(image_path, '*')))
+
+    post '/upload', {file: Rack::Test::UploadedFile.new(file, 'image/jpg')}
+    assert_equal(302, last_response.status)
+    assert_equal("You must be signed in to do that.", session[:error])
+    get(last_response["Location"])
+    assert_equal(200, last_response.status)
+    assert_includes(last_response.body, "<h1>Documents</h1>")
   end
 
   def test_signin

@@ -1,0 +1,5 @@
+<form action="/<%= params[:file] %>/rename" method="post">
+	<label for="new_file_name">Document Name:</label>
+	<input type="text" name="new_file_name" placeholder="<%= params[:file] %>"><br>
+	<input class="btn btn-primary btn-sm" type="submit" value="Change File Name">
+</form>

@@ -16,10 +16,22 @@ body {
 	background-color: #FF838F;
 }
 
-.delete {
+.button {
 	display: inline-block;
 }
 
 .plain_text {
 	overflow: auto;
+}
+
+.btn {
+	margin: 1px;
+}
+
+#image_select_form {
+	display: none;
+}
+
+.thumbnail {
+	height: 75px;
 }
