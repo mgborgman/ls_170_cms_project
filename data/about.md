@@ -1,2 +1,1 @@
 #This is markdown
-![image](/images/matt_and_ashley_honeymoon.jpg)

@@ -37,6 +37,9 @@
 	<% @images.each do |image| %>
 		<li>
 			<a href="/<%= image %>"><%= image %></a>
+			<form class="button" action="/<%= image %>/delete" method="post">
+				<button class="btn btn-danger btn-sm" type="submit">Delete</button>	
+			</form>
 		</li>
 	<% end %>
 </ul>
